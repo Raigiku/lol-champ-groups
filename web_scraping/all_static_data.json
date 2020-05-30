@@ -1,0 +1,49 @@
+{
+    "lanes": [
+        {
+            "name": "top",
+            "percentage_xpath": "/html/body/div/div[2]/div/div[2]/a[1]"
+        },
+        {
+            "name": "jungle",
+            "percentage_xpath": "/html/body/div/div[2]/div/div[2]/a[2]"
+        },
+        {
+            "name": "middle",
+            "percentage_xpath": "/html/body/div/div[2]/div/div[2]/a[3]"
+        },
+        {
+            "name": "bottom",
+            "percentage_xpath": "/html/body/div/div[2]/div/div[2]/a[4]"
+        },
+        {
+            "name": "support",
+            "percentage_xpath": "/html/body/div/div[2]/div/div[2]/a[5]"
+        }
+    ],
+    "champion_names": [
+        "wukong",
+        "lulu",
+        "janna",
+        "vayne",
+        "zac",
+        "yasuo"
+    ],
+    "stats_xpaths": {
+        "physical_damage": "/html/body/div/div[3]/div[12]/div[11]/div[1]/div[2]/div[1]",
+        "magic_damage": "/html/body/div/div[3]/div[12]/div[11]/div[2]/div[2]/div[1]",
+        "true_damage": "/html/body/div/div[3]/div[12]/div[11]/div[3]/div[2]/div[1]",
+        "total_damage": "/html/body/div/div[3]/div[12]/div[11]/div[4]/div[2]/div[1]",
+        "damage_taken": "/html/body/div/div[3]/div[12]/div[11]/div[5]/div[2]/div[1]",
+        "healing": "/html/body/div/div[3]/div[12]/div[11]/div[6]/div[2]/div[1]",
+        "kills": "/html/body/div/div[3]/div[12]/div[11]/div[7]/div[2]/div[1]",
+        "deaths": "/html/body/div/div[3]/div[12]/div[11]/div[8]/div[2]/div[1]",
+        "assists": "/html/body/div/div[3]/div[12]/div[11]/div[9]/div[2]/div[1]",
+        "max_kill_spree": "/html/body/div/div[3]/div[12]/div[11]/div[10]/div[2]/div[1]",
+        "gold": "/html/body/div/div[3]/div[12]/div[11]/div[11]/div[2]/div[1]",
+        "minions_killed": "/html/body/div/div[3]/div[12]/div[11]/div[12]/div[2]/div[1]",
+        "jungle_cs": "/html/body/div/div[3]/div[12]/div[11]/div[13]/div[2]/div[1]",
+        "enemy_jungle_cs": "/html/body/div/div[3]/div[12]/div[11]/div[14]/div[2]/div[1]",
+        "team_jungle_cs": "/html/body/div/div[3]/div[12]/div[11]/div[15]/div[2]/div[1]"
+    }
+}
