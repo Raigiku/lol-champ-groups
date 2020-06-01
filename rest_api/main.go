@@ -8,11 +8,11 @@ import (
 )
 
 type DataPoint struct {
-	position float64
+	positions []float64
 }
 
-func newDataPoint(position float64) DataPoint {
-	dataPoint := DataPoint{position: position}
+func newDataPoint(positions []float64) DataPoint {
+	dataPoint := DataPoint{positions: positions}
 	return dataPoint
 }
 
@@ -27,43 +27,75 @@ func newCluster(centroid DataPoint) Cluster {
 }
 
 func distanceBetweenDataPoints(dataPoint1, dataPoint2 DataPoint) float64 {
-	distance := math.Sqrt(math.Pow(dataPoint1.position-dataPoint2.position, 2))
+	sum := 0.0
+	for i := range dataPoint1.positions {
+		sum += math.Pow(dataPoint1.positions[i]-dataPoint2.positions[i], 2)
+	}
+	distance := math.Sqrt(sum)
 	return distance
 }
 
 func clusterContainsDataPoint(cluster Cluster, otherDataPoint DataPoint) bool {
 	for _, dataPoint := range cluster.dataPoints {
-		if dataPoint == otherDataPoint {
+		containsDatapoint := false
+		for i := range dataPoint.positions {
+			if dataPoint.positions[i] == otherDataPoint.positions[i] {
+				containsDatapoint = true || containsDatapoint
+			}
+		}
+		if containsDatapoint {
 			return true
 		}
 	}
 	return false
 }
 
-func main() {
-	rand.Seed(time.Now().UnixNano())
-
-	// generate input
-	n := 40
-	dataPoints := make([]DataPoint, n)
-	minValue, maxValue := -20, 20
-	randomPositions := rand.Perm(maxValue*2 + 1)
-	for i, position := range randomPositions[:n] {
-		dataPoints[i] = newDataPoint(float64((position % (maxValue*2 + 1)) + minValue))
+func randomDataPoints(totalDimensions, totalDataPoints int, minValue, maxValue float64) []DataPoint {
+	dataPoints := make([]DataPoint, totalDataPoints)
+	for i := range dataPoints {
+		positions := make([]float64, totalDimensions)
+		for j := range positions {
+			positions[j] = minValue + rand.Float64()*(maxValue-minValue)
+		}
+		dataPoints[i] = newDataPoint(positions)
 	}
+	return dataPoints
+}
 
-	// place centroids
-	k := 2
-	clusters := make([]Cluster, k)
-	randomIndexDataPoints := rand.Perm(n)
+func initialClusters(totalClusters int, dataPoints []DataPoint) []Cluster {
+	clusters := make([]Cluster, totalClusters)
+	totalDataPoints := len(dataPoints)
+	randomIndexDataPoints := rand.Perm(totalDataPoints)
 	for i := range clusters {
 		randomDataPoint := dataPoints[randomIndexDataPoints[i]]
 		clusters[i] = newCluster(randomDataPoint)
 	}
+	return clusters
+}
 
-	// clusters[0].dataPoints = append(clusters[0].dataPoints, dataPoints[0])
+func printResults(dataPoints []DataPoint, clusters []Cluster) {
+	fmt.Println("datapoints:")
+	for _, dataPoint := range dataPoints {
+		fmt.Printf("%v ", dataPoint.positions)
+		fmt.Println()
+	}
+	fmt.Println()
+	fmt.Println()
+	fmt.Println("clusters:")
+	for _, cluster := range clusters {
+		fmt.Printf("centroid: %v", cluster.centroid.positions)
+		fmt.Println()
+		for _, dataPoint := range cluster.dataPoints {
+			fmt.Printf("%v ", dataPoint.positions)
+		}
+		fmt.Println()
+		fmt.Println()
+	}
+}
 
-	// repeat until convergence
+func runKMeans(clusters []Cluster, dataPoints []DataPoint) {
+	totalClusters := len(clusters)
+	totalDimensions := len(dataPoints[0].positions)
 	for {
 		didClustersChange := false
 		tempClusters := clusters
@@ -71,46 +103,51 @@ func main() {
 			tempClusters[i].dataPoints = nil
 		}
 
-		for _, dataPoint := range dataPoints {
-			nearestCluster, nearestClusterIndex := &tempClusters[0], 0
-			for i := 1; i < k; i++ {
-				if distanceBetweenDataPoints(tempClusters[i].centroid, dataPoint) < distanceBetweenDataPoints(nearestCluster.centroid, dataPoint) {
-					nearestCluster, nearestClusterIndex = &tempClusters[i], i
+		assignDataPointsToCluster := func() {
+			for _, dataPoint := range dataPoints {
+				nearestCluster, nearestClusterIndex := &tempClusters[0], 0
+				for i := 1; i < totalClusters; i++ {
+					if distanceBetweenDataPoints(tempClusters[i].centroid, dataPoint) < distanceBetweenDataPoints(nearestCluster.centroid, dataPoint) {
+						nearestCluster, nearestClusterIndex = &tempClusters[i], i
+					}
+				}
+				nearestCluster.dataPoints = append(nearestCluster.dataPoints, dataPoint)
+				if !clusterContainsDataPoint(clusters[nearestClusterIndex], dataPoint) {
+					didClustersChange = true
 				}
 			}
-			nearestCluster.dataPoints = append(nearestCluster.dataPoints, dataPoint)
-			if !clusterContainsDataPoint(clusters[nearestClusterIndex], dataPoint) {
-				didClustersChange = true
-			}
 		}
+		assignDataPointsToCluster()
+
 		if !didClustersChange {
 			break
 		}
-		for _, cluster := range tempClusters {
-			sumPositions := 0.
-			for _, dataPoint := range cluster.dataPoints {
-				sumPositions += dataPoint.position
+
+		repositionCentroid := func() {
+			for _, cluster := range tempClusters {
+				sumPositions := make([]float64, totalDimensions)
+				for _, dataPoint := range cluster.dataPoints {
+					for i, positions := range dataPoint.positions {
+						sumPositions[i] += positions
+					}
+				}
+				avgPositions := make([]float64, totalDimensions)
+				for i := range avgPositions {
+					avgPositions[i] = avgPositions[i] / float64(totalClusters)
+				}
+				cluster.centroid = newDataPoint(avgPositions)
 			}
-			avgPosition := sumPositions / float64(k)
-			cluster.centroid = newDataPoint(avgPosition)
 		}
+		repositionCentroid()
+
 		clusters = tempClusters
 	}
+}
 
-	// showing results
-	fmt.Println("datapoints:")
-	for _, dataPoint := range dataPoints {
-		fmt.Printf("%v ", dataPoint.position)
-	}
-	fmt.Println()
-	fmt.Println()
-	fmt.Println("clusters:")
-	for _, cluster := range clusters {
-		fmt.Printf("centroid: %v", cluster.centroid.position)
-		fmt.Println()
-		for _, dataPoint := range cluster.dataPoints {
-			fmt.Printf("%v ", dataPoint.position)
-		}
-		fmt.Println()
-	}
+func main() {
+	rand.Seed(time.Now().UnixNano())
+	dataPoints := randomDataPoints(1, 10, -20, 20)
+	clusters := initialClusters(3, dataPoints)
+	runKMeans(clusters, dataPoints)
+	printResults(dataPoints, clusters)
 }
