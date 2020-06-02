@@ -3,23 +3,53 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math"
 	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 )
 
-// DataPoint is a datapoint
-type DataPoint struct {
-	Positions []float64 `json:"positions"`
+// Champion league of legends
+type Champion struct {
+	Name  string               `json:"name"`
+	Lanes []map[string]float64 `json:"lanes"`
 }
 
-func newDataPoint(positions []float64) DataPoint {
-	dataPoint := DataPoint{Positions: positions}
+// Lane league of legends
+// type Lane struct {
+// 	// Name           string  `json:"name"`
+// 	PickPercentage float64 `json:"pick_percentage"`
+// 	PhysicalDamage float64 `json:"physical_damage"`
+// 	MagicDamage    float64 `json:"magic_damage"`
+// 	TrueDamage     float64 `json:"true_damage"`
+// 	TotalDamage    float64 `json:"total_damage"`
+// 	DamageTaken    float64 `json:"damage_taken"`
+// 	Healing        float64 `json:"healing"`
+// 	Kills          float64 `json:"kills"`
+// 	Deaths         float64 `json:"deaths"`
+// 	Assists        float64 `json:"assists"`
+// 	MaxKillSpree   float64 `json:"max_kill_spree"`
+// 	Gold           float64 `json:"gold"`
+// 	MinionsKilled  float64 `json:"minions_killed"`
+// 	JungleCs       float64 `json:"jungle_cs"`
+// 	EnemyJungleCs  float64 `json:"enemy_jungle_cs"`
+// 	TeamJungleCs   float64 `json:"team_jungle_cs"`
+// }
+
+// DataPoint is a datapoint
+type DataPoint struct {
+	ChampionName string    `json:"championName"`
+	Positions    []float64 `json:"positions"`
+}
+
+func newDataPoint(championName string, positions []float64) DataPoint {
+	dataPoint := DataPoint{ChampionName: championName, Positions: positions}
 	return dataPoint
 }
 
@@ -65,7 +95,35 @@ func randomDataPoints(totalDimensions, totalDataPoints int, minValue, maxValue f
 		for j := range Positions {
 			Positions[j] = minValue + rand.Float64()*(maxValue-minValue)
 		}
-		dataPoints[i] = newDataPoint(Positions)
+		dataPoints[i] = newDataPoint(string(i), Positions)
+	}
+	return dataPoints
+}
+
+func lolChampionsFileDataPoints(filename string, laneName string, attributes []string) []DataPoint {
+	file, _ := ioutil.ReadFile(filename)
+	var champions []Champion
+	json.Unmarshal(file, &champions)
+
+	laneIds := map[string]int{
+		"top":     0,
+		"jungle":  1,
+		"middle":  2,
+		"bottom":  3,
+		"support": 4,
+	}
+
+	var dataPoints []DataPoint
+	for _, champion := range champions {
+		lane := champion.Lanes[laneIds[laneName]]
+		if lane["pick_percentage"] >= 10 {
+			dataPointPositions := make([]float64, 0)
+			for _, attribute := range attributes {
+				dataPointPositions = append(dataPointPositions, lane[attribute])
+			}
+			dataPoint := newDataPoint(champion.Name, dataPointPositions)
+			dataPoints = append(dataPoints, dataPoint)
+		}
 	}
 	return dataPoints
 }
@@ -102,7 +160,7 @@ func printResults(DataPoints []DataPoint, clusters []Cluster) {
 
 		fmt.Println()
 		for _, dataPoint := range cluster.DataPoints {
-			fmt.Printf("(")
+			fmt.Printf("%v (", dataPoint.ChampionName)
 			for i, position := range dataPoint.Positions {
 				fmt.Printf("%v", position)
 				if i != len(dataPoint.Positions)-1 {
@@ -162,7 +220,7 @@ func runKMeans(clusters []Cluster, dataPoints []DataPoint) {
 				for i := range avgPositions {
 					avgPositions[i] = sumPositions[i] / float64(totalDataPoints)
 				}
-				tempClusters[i].Centroid = newDataPoint(avgPositions)
+				tempClusters[i].Centroid = newDataPoint("", avgPositions)
 			}
 		}
 		repositionCentroid()
@@ -171,26 +229,43 @@ func runKMeans(clusters []Cluster, dataPoints []DataPoint) {
 	}
 }
 
-func getClusters(w http.ResponseWriter, r *http.Request) {
+func apiGetClusters(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	totalClustersStr := params["totalClusters"]
-	totalClusters, err := strconv.Atoi(totalClustersStr)
-	if err != nil {
-		json.NewEncoder(w).Encode("total clusters is not integer")
-	} else {
-		dataPoints := randomDataPoints(2, 10, -20, 20)
-		clusters := initialClusters(totalClusters, dataPoints)
-		runKMeans(clusters, dataPoints)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(clusters)
-	}
+	laneName := params["laneName"]
+
+	attributesStr := r.FormValue("attributes")
+	attributes := strings.Split(attributesStr, ",")
+
+	totalClustersStr := r.FormValue("totalClusters")
+	totalClusters, _ := strconv.Atoi(totalClustersStr)
+
+	dataPoints := lolChampionsFileDataPoints("champions.json", laneName, attributes)
+	clusters := initialClusters(totalClusters, dataPoints)
+	runKMeans(clusters, dataPoints)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(clusters)
 }
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
 	r := mux.NewRouter()
-	r.HandleFunc("/api/clusters/{totalClusters}", getClusters).Methods("GET")
+	r.HandleFunc("/api/lanes/{laneName}", apiGetClusters).
+		Methods("GET").
+		Queries("totalClusters", "{totalClusters}").
+		Queries("attributes", "{attributes}")
+
 	log.Fatal(http.ListenAndServe(":8000", r))
+
+	// filename := "champions.json"
+	// laneName := "support"
+	// attributes := []string{"healing"}
+	// totalClusters := 2
+	// dataPoints := lolChampionsFileDataPoints(filename, laneName, attributes)
+	// clusters := initialClusters(totalClusters, dataPoints)
+	// runKMeans(clusters, dataPoints)
+	// printResults(dataPoints, clusters)
+
 	// dataPoints := randomDataPoints(2, 10, -20, 20)
 	// clusters := initialClusters(4, dataPoints)
 	// runKMeans(clusters, dataPoints)
