@@ -1,8 +1,8 @@
 use crate::constants::*;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::{collections::HashMap, error::Error};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Lane {
     name: String,
     pick_percentage: f32,

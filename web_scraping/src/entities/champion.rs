@@ -1,7 +1,7 @@
 use super::Lane;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Champion {
     name: String,
     lanes: Vec<Lane>,
