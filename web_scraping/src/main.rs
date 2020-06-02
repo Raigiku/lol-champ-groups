@@ -28,6 +28,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let lolalytics_url = "https://lolalytics.com/lol";
     let mut champions = Vec::<Champion>::new();
+
+    // let json = fs::read_to_string("champions.json")?;
+    // champions = serde_json::from_str(&json)?;
+
     for champion_name in static_data.champion_names().iter() {
         let mut lanes = Vec::<Lane>::new();
         for lane in static_data.lanes().iter() {
@@ -39,7 +43,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             );
             driver.get(url).await?;
 
-            thread::sleep(Duration::from_secs(5));
+            thread::sleep(Duration::from_secs(10));
 
             let mut stats = HashMap::new();
             for (stat, xpath) in static_data.stats_xpaths().iter() {
@@ -56,8 +60,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             )?);
         }
         champions.push(Champion::new(champion_name.clone(), lanes));
+        serde_json::to_writer_pretty(&fs::File::create("champions.json")?, &champions)?;
     }
-    serde_json::to_writer_pretty(&fs::File::create("champions.json")?, &champions)?;
 
     Ok(())
 }
