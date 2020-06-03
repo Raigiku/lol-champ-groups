@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -255,12 +256,16 @@ func main() {
 		Queries("totalClusters", "{totalClusters}").
 		Queries("attributes", "{attributes}")
 
-	log.Fatal(http.ListenAndServe(":8000", r))
+	headersOk := handlers.AllowedHeaders([]string{"*"})
+	originsOk := handlers.AllowedOrigins([]string{"*"})
+	methodsOk := handlers.AllowedMethods([]string{"GET"})
+
+	log.Fatal(http.ListenAndServe(":8000", handlers.CORS(headersOk, originsOk, methodsOk)(r)))
 
 	// filename := "champions.json"
-	// laneName := "support"
-	// attributes := []string{"healing"}
-	// totalClusters := 2
+	// laneName := "jungle"
+	// attributes := []string{"enemy_jungle_cs"}
+	// totalClusters := 4
 	// dataPoints := lolChampionsFileDataPoints(filename, laneName, attributes)
 	// clusters := initialClusters(totalClusters, dataPoints)
 	// runKMeans(clusters, dataPoints)
