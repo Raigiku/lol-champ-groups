@@ -10,9 +10,10 @@ export class GetClustersByLaneResponse {
 }
 
 export class LanesService {
-  static async getClustersByLane(lane: string, totalClusters: number, attributes: Set<string>) {
+  static async getClustersByLane(lane: string, totalClusters: number, attributes: Set<string>, distanceMethod: string) {
     const queryParams = new URLSearchParams()
     queryParams.append('totalClusters', totalClusters.toString())
+    queryParams.append('distanceMethod', distanceMethod)
     queryParams.append('attributes', Array.from(attributes).toString())
     const url = `http://localhost:8000/api/lanes/${lane}?${queryParams.toString()}`
     const response = await fetch(url)

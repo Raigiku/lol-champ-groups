@@ -30,7 +30,8 @@ export class HomeState {
         const response = await LanesService.getClustersByLane(
           clusterInputs.lane!,
           clusterInputs.totalClusters!,
-          clusterInputs.attributes!
+          clusterInputs.attributes!,
+          clusterInputs.distanceMethod!
         )
         if (response.ok) {
           dispatch({ type: HomeActionTypes.SetProp, payload: { prop: 'clusters', value: response.data } })

@@ -1,15 +1,17 @@
 export class ClusterInputs {
   totalClusters?: number
   lane?: string
+  distanceMethod?: string
   attributes?: Set<string>
-  constructor(totalClusters?: number, lane?: string, attributes?: Set<string>) {
+  constructor(totalClusters?: number, lane?: string, attributes?: Set<string>, distanceMethod?: string) {
     this.totalClusters = totalClusters
     this.lane = lane
     this.attributes = attributes
+    this.distanceMethod = distanceMethod
   }
 
   static initial() {
-    return new ClusterInputs(undefined, undefined, undefined)
+    return new ClusterInputs()
   }
 
   static isTotalClustersOk(value: string) {
@@ -24,5 +26,6 @@ export class ClusterInputs {
     return self.attributes != null
       && self.lane != null
       && self.totalClusters != null
+      && self.distanceMethod != null
   }
 }

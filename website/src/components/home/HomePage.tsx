@@ -5,7 +5,7 @@ import { homeReducer } from './HomeReducer'
 import { HomeState } from './HomeState'
 import { ClusterInputs } from '../../entities/home/ClusterInputs'
 import SelectWrapper from '../common/SelectWrapper'
-import { laneSelectItems, attributeCheckboxGroupItems } from './Constants'
+import { laneSelectItems, attributeCheckboxGroupItems, distanceMethodSelectItems } from './Constants'
 import CheckboxGroupWrapper from '../common/CheckboxGroupWrapper'
 import ClustersTable from './ClustersTable'
 
@@ -37,6 +37,17 @@ const HomePage = () => {
             required={true}
             updateState={(prop, value) => HomeState.setClusterInputsProp(prop, dispatch, value == null ? value : parseInt(value))}
             isValueOk={ClusterInputs.isTotalClustersOk}
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <SelectWrapper
+            label='Distance Method'
+            name='distanceMethod'
+            required={true}
+            updateState={(prop, value) => HomeState.setClusterInputsProp(prop, dispatch, value)}
+            helperText='Which method to use for calculating ditance between points'
+            items={distanceMethodSelectItems}
           />
         </Grid>
 

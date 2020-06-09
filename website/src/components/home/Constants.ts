@@ -90,3 +90,14 @@ export const attributeCheckboxGroupItems = [
     name: 'team_jungle_cs'
   },
 ] as CheckboxGroupItem[]
+
+export const distanceMethodSelectItems = [
+  {
+    label: 'Euclidean',
+    value: 'euclidean',
+  },
+  {
+    label: 'Manhattan',
+    value: 'manhattan',
+  },
+] as SelectItem[]
