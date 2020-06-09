@@ -22,27 +22,6 @@ type Champion struct {
 	Lanes []map[string]float64 `json:"lanes"`
 }
 
-// Lane league of legends
-// type Lane struct {
-// 	// Name           string  `json:"name"`
-// 	PickPercentage float64 `json:"pick_percentage"`
-// 	PhysicalDamage float64 `json:"physical_damage"`
-// 	MagicDamage    float64 `json:"magic_damage"`
-// 	TrueDamage     float64 `json:"true_damage"`
-// 	TotalDamage    float64 `json:"total_damage"`
-// 	DamageTaken    float64 `json:"damage_taken"`
-// 	Healing        float64 `json:"healing"`
-// 	Kills          float64 `json:"kills"`
-// 	Deaths         float64 `json:"deaths"`
-// 	Assists        float64 `json:"assists"`
-// 	MaxKillSpree   float64 `json:"max_kill_spree"`
-// 	Gold           float64 `json:"gold"`
-// 	MinionsKilled  float64 `json:"minions_killed"`
-// 	JungleCs       float64 `json:"jungle_cs"`
-// 	EnemyJungleCs  float64 `json:"enemy_jungle_cs"`
-// 	TeamJungleCs   float64 `json:"team_jungle_cs"`
-// }
-
 // DataPoint is a datapoint
 type DataPoint struct {
 	ChampionName string    `json:"championName"`
@@ -65,12 +44,20 @@ func newCluster(centroid DataPoint) Cluster {
 	return cluster
 }
 
-func distanceBetweenDataPoints(dataPoint1, dataPoint2 DataPoint) float64 {
+func euclideanDistanceBetweenDataPoints(dataPoint1, dataPoint2 DataPoint) float64 {
 	sum := 0.0
 	for i := range dataPoint1.Positions {
 		sum += math.Pow(dataPoint1.Positions[i]-dataPoint2.Positions[i], 2)
 	}
 	distance := math.Sqrt(sum)
+	return distance
+}
+
+func manhattanDistanceBetweenDataPoints(dataPoint1, dataPoint2 DataPoint) float64 {
+	distance := 0.0
+	for i := range dataPoint1.Positions {
+		distance += math.Abs(dataPoint1.Positions[i] - dataPoint2.Positions[i])
+	}
 	return distance
 }
 
@@ -176,6 +163,51 @@ func printResults(DataPoints []DataPoint, clusters []Cluster) {
 	}
 }
 
+func parallelLocalSum(sumsChannel chan []float64, endChannel chan bool, dataPoints []DataPoint, id, totalDimensions, totalThreads int) {
+	localSum := make([]float64, totalDimensions)
+	for i := id; i < len(dataPoints); i += totalThreads {
+		for j, position := range dataPoints[i].Positions {
+			localSum[j] += position
+		}
+	}
+	sumsChannel <- localSum
+	endChannel <- true
+}
+
+func parallelDataPointSum(totalThreads, totalDimensions int, sumsChannel chan []float64, endChannel chan bool, dataPoints []DataPoint) {
+	for th := 0; th < totalThreads; th++ {
+		go parallelLocalSum(sumsChannel, endChannel, dataPoints, th, totalDimensions, totalThreads)
+	}
+	for i := 0; i < totalThreads; i++ {
+		<-endChannel
+	}
+	close(sumsChannel)
+}
+
+func repositionCentroid(finishChannel chan bool, tempClusters []Cluster, totalDimensions int) {
+	numThreads := 12
+	for k := range tempClusters {
+		sumsChannel := make(chan []float64)
+		endChannel := make(chan bool)
+		go parallelDataPointSum(numThreads, totalDimensions, sumsChannel, endChannel, tempClusters[k].DataPoints)
+
+		totalSum := make([]float64, totalDimensions)
+		for sum := range sumsChannel {
+			for i, position := range sum {
+				totalSum[i] += position
+			}
+		}
+
+		avgPositions := make([]float64, totalDimensions)
+		totalDataPoints := len(tempClusters[k].DataPoints)
+		for i := range avgPositions {
+			avgPositions[i] = totalSum[i] / float64(totalDataPoints)
+		}
+		tempClusters[k].Centroid = newDataPoint("", avgPositions)
+	}
+	finishChannel <- true
+}
+
 func runKMeans(clusters []Cluster, dataPoints []DataPoint) {
 	totalClusters := len(clusters)
 	totalDimensions := len(dataPoints[0].Positions)
@@ -192,7 +224,7 @@ func runKMeans(clusters []Cluster, dataPoints []DataPoint) {
 			for _, dataPoint := range dataPoints {
 				nearestCluster, nearestClusterIndex := &tempClusters[0], 0
 				for i := 1; i < totalClusters; i++ {
-					if distanceBetweenDataPoints(tempClusters[i].Centroid, dataPoint) < distanceBetweenDataPoints(nearestCluster.Centroid, dataPoint) {
+					if manhattanDistanceBetweenDataPoints(tempClusters[i].Centroid, dataPoint) < manhattanDistanceBetweenDataPoints(nearestCluster.Centroid, dataPoint) {
 						nearestCluster, nearestClusterIndex = &tempClusters[i], i
 					}
 				}
@@ -208,23 +240,28 @@ func runKMeans(clusters []Cluster, dataPoints []DataPoint) {
 			break
 		}
 
-		repositionCentroid := func() {
-			for i := range tempClusters {
-				sumPositions := make([]float64, totalDimensions)
-				for _, dataPoint := range tempClusters[i].DataPoints {
-					for i, Positions := range dataPoint.Positions {
-						sumPositions[i] += Positions
-					}
-				}
-				avgPositions := make([]float64, totalDimensions)
-				totalDataPoints := len(tempClusters[i].DataPoints)
-				for i := range avgPositions {
-					avgPositions[i] = sumPositions[i] / float64(totalDataPoints)
-				}
-				tempClusters[i].Centroid = newDataPoint("", avgPositions)
-			}
-		}
-		repositionCentroid()
+		// repositionCentroid := func() {
+		// 	for i := range tempClusters {
+		// 		sumPositions := make([]float64, totalDimensions)
+		// 		for _, dataPoint := range tempClusters[i].DataPoints {
+		// 			for i, position := range dataPoint.Positions {
+		// 				sumPositions[i] += position
+		// 			}
+		// 		}
+
+		// 		avgPositions := make([]float64, totalDimensions)
+		// 		totalDataPoints := len(tempClusters[i].DataPoints)
+		// 		for i := range avgPositions {
+		// 			avgPositions[i] = sumPositions[i] / float64(totalDataPoints)
+		// 		}
+		// 		tempClusters[i].Centroid = newDataPoint("", avgPositions)
+		// 	}
+		// }
+		// repositionCentroid()
+
+		finishChannel := make(chan bool)
+		go repositionCentroid(finishChannel, tempClusters, totalDimensions)
+		<-finishChannel
 
 		copy(clusters, tempClusters)
 	}
@@ -272,7 +309,7 @@ func main() {
 	// printResults(dataPoints, clusters)
 
 	// dataPoints := randomDataPoints(2, 10, -20, 20)
-	// clusters := initialClusters(4, dataPoints)
+	// clusters := initialClusters(3, dataPoints)
 	// runKMeans(clusters, dataPoints)
 	// printResults(dataPoints, clusters)
 
