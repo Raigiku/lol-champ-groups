@@ -208,7 +208,7 @@ func repositionCentroid(finishChannel chan bool, tempClusters []Cluster, totalDi
 	finishChannel <- true
 }
 
-func runKMeans(clusters []Cluster, dataPoints []DataPoint) {
+func runKMeans(distanceMethod func(dataPoint1, dataPoint2 DataPoint) float64, clusters []Cluster, dataPoints []DataPoint) {
 	totalClusters := len(clusters)
 	totalDimensions := len(dataPoints[0].Positions)
 	for {
@@ -224,7 +224,7 @@ func runKMeans(clusters []Cluster, dataPoints []DataPoint) {
 			for _, dataPoint := range dataPoints {
 				nearestCluster, nearestClusterIndex := &tempClusters[0], 0
 				for i := 1; i < totalClusters; i++ {
-					if manhattanDistanceBetweenDataPoints(tempClusters[i].Centroid, dataPoint) < manhattanDistanceBetweenDataPoints(nearestCluster.Centroid, dataPoint) {
+					if distanceMethod(tempClusters[i].Centroid, dataPoint) < distanceMethod(nearestCluster.Centroid, dataPoint) {
 						nearestCluster, nearestClusterIndex = &tempClusters[i], i
 					}
 				}
@@ -239,25 +239,6 @@ func runKMeans(clusters []Cluster, dataPoints []DataPoint) {
 		if !didClustersChange {
 			break
 		}
-
-		// repositionCentroid := func() {
-		// 	for i := range tempClusters {
-		// 		sumPositions := make([]float64, totalDimensions)
-		// 		for _, dataPoint := range tempClusters[i].DataPoints {
-		// 			for i, position := range dataPoint.Positions {
-		// 				sumPositions[i] += position
-		// 			}
-		// 		}
-
-		// 		avgPositions := make([]float64, totalDimensions)
-		// 		totalDataPoints := len(tempClusters[i].DataPoints)
-		// 		for i := range avgPositions {
-		// 			avgPositions[i] = sumPositions[i] / float64(totalDataPoints)
-		// 		}
-		// 		tempClusters[i].Centroid = newDataPoint("", avgPositions)
-		// 	}
-		// }
-		// repositionCentroid()
 
 		finishChannel := make(chan bool)
 		go repositionCentroid(finishChannel, tempClusters, totalDimensions)
@@ -279,7 +260,15 @@ func apiGetClusters(w http.ResponseWriter, r *http.Request) {
 
 	dataPoints := lolChampionsFileDataPoints("champions.json", laneName, attributes)
 	clusters := initialClusters(totalClusters, dataPoints)
-	runKMeans(clusters, dataPoints)
+
+	var distanceMethod func(dataPoint1, dataPoint2 DataPoint) float64
+	distanceMethodStr := r.FormValue("distanceMethod")
+	if distanceMethodStr == "manhattan" {
+		distanceMethod = manhattanDistanceBetweenDataPoints
+	} else if distanceMethodStr == "euclidean" {
+		distanceMethod = euclideanDistanceBetweenDataPoints
+	}
+	runKMeans(distanceMethod, clusters, dataPoints)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(clusters)
@@ -291,7 +280,8 @@ func main() {
 	r.HandleFunc("/api/lanes/{laneName}", apiGetClusters).
 		Methods("GET").
 		Queries("totalClusters", "{totalClusters}").
-		Queries("attributes", "{attributes}")
+		Queries("attributes", "{attributes}").
+		Queries("distanceMethod", "{distanceMethod}")
 
 	headersOk := handlers.AllowedHeaders([]string{"*"})
 	originsOk := handlers.AllowedOrigins([]string{"*"})
