@@ -17,7 +17,7 @@ const HomePage = () => {
         <Typography variant='h1'>LoL Champion Groups</Typography>
       </Grid>
 
-      <Grid item xs={4} container spacing={2}>
+      <Grid item xs={4} spacing={2}>
         <Grid item xs={12}>
           <Button
             color='primary'
@@ -27,6 +27,8 @@ const HomePage = () => {
             Generate Clusters
             </Button>
         </Grid>
+
+        <br />
 
         <Grid item xs={12}>
           <TextFieldWrapper
@@ -39,6 +41,8 @@ const HomePage = () => {
             isValueOk={ClusterInputs.isTotalClustersOk}
           />
         </Grid>
+
+        <br />
 
         <Grid item xs={12}>
           <SelectWrapper
@@ -61,6 +65,8 @@ const HomePage = () => {
             items={laneSelectItems}
           />
         </Grid>
+        
+        <br />
 
         <Grid item xs={12}>
           <CheckboxGroupWrapper
