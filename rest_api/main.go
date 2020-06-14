@@ -187,10 +187,13 @@ func parallelDataPointSum(totalThreads, totalDimensions int, sumsChannel chan []
 func repositionCentroid(finishChannel chan bool, tempClusters []Cluster, totalDimensions int) {
 	numThreads := 12
 	for k := range tempClusters {
+		// Canal que almacenara 12 numeros que representan la suma de las posiciones
+		// de los datapoints del cluster actual, cada suma es calculado por cada hilo
 		sumsChannel := make(chan []float64)
 		endChannel := make(chan bool)
 		go parallelDataPointSum(numThreads, totalDimensions, sumsChannel, endChannel, tempClusters[k].DataPoints)
 
+		// Obteniendo la suma de todas las posiciones de los datapoints del cluster actual
 		totalSum := make([]float64, totalDimensions)
 		for sum := range sumsChannel {
 			for i, position := range sum {
@@ -198,11 +201,14 @@ func repositionCentroid(finishChannel chan bool, tempClusters []Cluster, totalDi
 			}
 		}
 
+		// Obteniendo la posicion promedio calculada con la suma de todas las posiciones y
+		// dividiendo cada dimension por el total de datapoints en el cluster
 		avgPositions := make([]float64, totalDimensions)
 		totalDataPoints := len(tempClusters[k].DataPoints)
 		for i := range avgPositions {
 			avgPositions[i] = totalSum[i] / float64(totalDataPoints)
 		}
+		// Reposicionando el centroide
 		tempClusters[k].Centroid = newDataPoint("", avgPositions)
 	}
 	finishChannel <- true
@@ -214,12 +220,14 @@ func runKMeans(distanceMethod func(dataPoint1, dataPoint2 DataPoint) float64, cl
 	for {
 		didClustersChange := false
 
+		// Creando copia para luego verificar si los clusters han cambiado
 		tempClusters := make([]Cluster, len(clusters))
 		copy(tempClusters, clusters)
 		for i := range tempClusters {
 			tempClusters[i].DataPoints = nil
 		}
 
+		// Asignando datapoints hacia clusters
 		assignDataPointsToCluster := func() {
 			for _, dataPoint := range dataPoints {
 				nearestCluster, nearestClusterIndex := &tempClusters[0], 0
@@ -300,7 +308,7 @@ func main() {
 
 	// dataPoints := randomDataPoints(2, 10, -20, 20)
 	// clusters := initialClusters(3, dataPoints)
-	// runKMeans(clusters, dataPoints)
+	// runKMeans(euclideanDistanceBetweenDataPoints, clusters, dataPoints)
 	// printResults(dataPoints, clusters)
 
 }
