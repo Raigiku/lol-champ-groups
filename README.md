@@ -13,7 +13,9 @@ En la interfaz el usuario puede:
 
 Pasos para ejecutar
 1. cd rest_api/
-2. go run main.go
-3. cd website/
-4. npm install
-5. npm start
+2. go get github.com/gorilla/handlers
+3. go get github.com/gorilla/mux
+4. go run main.go
+5. cd website/
+6. npm install
+7. npm start
